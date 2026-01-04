@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training #{{ training['id'] }} - Turkish SER</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <span class="logo-icon">🎤</span>
+                <span class="logo-text">Turkish SER</span>
+            </a>
+            <nav class="nav">
+                <a href="/" class="nav-link">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/record" class="nav-link">
+                    <span class="nav-icon">🎙️</span>
+                    <span>Record</span>
+                </a>
+                <a href="/train" class="nav-link">
+                    <span class="nav-icon">🚀</span>
+                    <span>Train</span>
+                </a>
+                <a href="/history" class="nav-link active">
+                    <span class="nav-icon">📈</span>
+                    <span>History</span>
+                </a>
+                <a href="/dataset" class="nav-link">
+                    <span class="nav-icon">📂</span>
+                    <span>Dataset</span>
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <!-- Page Header -->
+            <div class="page-header slide-up">
+                <div class="flex-between flex-wrap gap-2">
+                    <div>
+                        <h1 class="page-title">Training #{{ training['id'] }}</h1>
+                        <p class="page-subtitle">
+                            {{ training['model_type'].upper() }} Model • 
+                            Started {{ training['start_time'][:19].replace('T', ' ') if training['start_time'] else 'N/A' }}
+                        </p>
+                    </div>
+                    <a href="/history" class="btn btn-ghost">
+                        ← Back to History
+                    </a>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-4 mb-4 slide-up" style="animation-delay: 0.1s;">
+                <!-- Status -->
+                <div class="card text-center" style="
+                    {% if training['status'] == 'completed' %}
+                        background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%);
+                        border-color: var(--accent-success);
+                    {% elif training['status'] == 'failed' %}
+                        background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%);
+                        border-color: var(--accent-error);
+                    {% elif training['status'] == 'running' %}
+                        background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.2) 100%);
+                        border-color: var(--accent-warning);
+                    {% else %}
+                        background: linear-gradient(135deg, rgba(124, 58, 237, 0.2) 0%, rgba(109, 40, 217, 0.2) 100%);
+                        border-color: var(--accent-secondary);
+                    {% endif %}
+                ">
+                    <div class="stat-label">Status</div>
+                    <div style="font-size: 32px; margin: 8px 0;">
+                        {% if training['status'] == 'completed' %}✅
+                        {% elif training['status'] == 'failed' %}❌
+                        {% elif training['status'] == 'running' %}🔄
+                        {% else %}⏸️{% endif %}
+                    </div>
+                    <div class="font-semibold text-primary">{{ training['status'].upper() }}</div>
+                </div>
+
+                <!-- Accuracy -->
+                <div class="card text-center">
+                    <div class="stat-label">Best Accuracy</div>
+                    <div class="stat-value" style="font-size: 36px; margin: 8px 0;">
+                        {{ "%.1f"|format(training['best_val_acc'] * 100) if training['best_val_acc'] else 0 }}%
+                    </div>
+                    <div class="text-muted">Validation</div>
+                </div>
+
+                <!-- Epochs -->
+                <div class="card text-center">
+                    <div class="stat-label">Epochs</div>
+                    <div class="stat-value stat-value-secondary" style="font-size: 36px; margin: 8px 0;">
+                        {{ training['final_epoch'] if training['final_epoch'] else 0 }}
+                    </div>
+                    <div class="text-muted">/ {{ training['total_epochs'] if training['total_epochs'] else 100 }}</div>
+                </div>
+
+                <!-- Duration -->
+                <div class="card text-center">
+                    <div class="stat-label">Duration</div>
+                    <div class="stat-value stat-value-secondary" style="font-size: 36px; margin: 8px 0;">
+                        {{ "%.1f"|format(training['training_time_minutes']) if training['training_time_minutes'] else '0' }}
+                    </div>
+                    <div class="text-muted">minutes</div>
+                </div>
+            </div>
+
+            <!-- Performance Analysis -->
+            <div class="card slide-up mb-4" style="animation-delay: 0.2s;">
+                <div class="card-title">
+                    <span>🎯</span>
+                    <span>Performance Analysis</span>
+                </div>
+                
+                <div id="performance-analysis">
+                    <!-- Will be filled by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Training Curves -->
+            <div class="card slide-up mb-4" style="animation-delay: 0.3s;">
+                <div class="card-title">
+                    <span>📈</span>
+                    <span>Training Curves</span>
+                </div>
+                
+                <div style="background: var(--bg-glass); padding: 20px; border-radius: var(--radius-md);">
+                    <img src="/api/training/{{ training['id'] }}/curves" 
+                         alt="Training Curves" 
+                         style="width: 100%; max-width: 900px; display: block; margin: 0 auto; border-radius: var(--radius-md);"
+                         onerror="this.style.display='none'; document.getElementById('no-curves').style.display='block';">
+                    <div id="no-curves" class="empty-state" style="display: none;">
+                        <div class="empty-icon">📊</div>
+                        <div class="empty-title">No Training Curves Available</div>
+                        <p class="empty-description">Training curves will appear after training completes.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="card slide-up mb-4" style="animation-delay: 0.4s; background: var(--gradient-secondary); border: none;">
+                <div class="card-title" style="color: white;">
+                    <span>💡</span>
+                    <span>Recommendations</span>
+                </div>
+                
+                <div id="recommendations" style="color: rgba(255,255,255,0.9);">
+                    <!-- Will be filled by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Configuration -->
+            <div class="card slide-up" style="animation-delay: 0.5s;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span>⚙️</span>
+                        <span>Configuration</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="copyConfig()">📋 Copy</button>
+                </div>
+                
+                <pre id="config-json" class="console" style="color: var(--text-primary); background: var(--bg-tertiary);">{{ training['config'] | tojson(indent=2) if training['config'] else '{}' }}</pre>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script>
+        const training = {{ training | tojson }};
+        
+        // ============ Analyze Performance ============
+        function analyzePerformance() {
+            const container = document.getElementById('performance-analysis');
+            const accuracy = (training.best_val_acc || 0) * 100;
+            const epochs = training.final_epoch || 0;
+            const totalEpochs = training.total_epochs || 100;
+            
+            let html = '<div style="display: flex; flex-direction: column; gap: 16px;">';
+            
+            // Overall assessment
+            if (accuracy >= 70) {
+                html += `
+                    <div class="stat-card" style="padding: 20px; border-left-color: var(--accent-success);">
+                        <div class="flex gap-3" style="align-items: flex-start;">
+                            <span style="font-size: 32px;">🎉</span>
+                            <div>
+                                <div class="text-success font-bold" style="font-size: 18px;">Excellent Performance!</div>
+                                <p class="text-secondary mt-1">Your model achieved ${accuracy.toFixed(1)}% validation accuracy. This is great for emotion recognition!</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (accuracy >= 50) {
+                html += `
+                    <div class="stat-card" style="padding: 20px; border-left-color: var(--accent-warning);">
+                        <div class="flex gap-3" style="align-items: flex-start;">
+                            <span style="font-size: 32px;">👍</span>
+                            <div>
+                                <div class="text-warning font-bold" style="font-size: 18px;">Good Performance</div>
+                                <p class="text-secondary mt-1">Your model achieved ${accuracy.toFixed(1)}% accuracy. There's room for improvement with more data.</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (accuracy > 0) {
+                html += `
+                    <div class="stat-card" style="padding: 20px; border-left-color: var(--accent-error);">
+                        <div class="flex gap-3" style="align-items: flex-start;">
+                            <span style="font-size: 32px;">⚠️</span>
+                            <div>
+                                <div class="text-error font-bold" style="font-size: 18px;">Needs Improvement</div>
+                                <p class="text-secondary mt-1">Your model achieved ${accuracy.toFixed(1)}% accuracy. The dataset is likely too small for effective training.</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Early stopping analysis
+            if (epochs < totalEpochs * 0.5) {
+                html += `
+                    <div class="stat-card" style="padding: 20px;">
+                        <div class="flex gap-3" style="align-items: flex-start;">
+                            <span style="font-size: 32px;">⏱️</span>
+                            <div>
+                                <div class="text-primary font-bold" style="font-size: 16px;">Early Stopping Triggered</div>
+                                <p class="text-secondary mt-1">Training stopped at epoch ${epochs}/${totalEpochs}. The model wasn't improving, preventing overfitting.</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Dataset warning
+            html += `
+                <div class="stat-card" style="padding: 20px;">
+                    <div class="flex gap-3" style="align-items: flex-start;">
+                        <span style="font-size: 32px;">📊</span>
+                        <div>
+                            <div class="text-primary font-bold" style="font-size: 16px;">Dataset Size Impact</div>
+                            <p class="text-secondary mt-1">Deep learning models require substantial data. With limited samples, performance is constrained. Aim for 50-100 samples per emotion class.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
+        // ============ Generate Recommendations ============
+        function generateRecommendations() {
+            const container = document.getElementById('recommendations');
+            const accuracy = (training.best_val_acc || 0) * 100;
+            
+            let recs = [
+                {
+                    icon: '1️⃣',
+                    title: 'Collect More Data',
+                    desc: 'Aim for 50-100 samples per emotion (350-700 total for 7 emotions). More data = better accuracy.'
+                },
+                {
+                    icon: '2️⃣',
+                    title: 'Data Augmentation',
+                    desc: 'Apply time stretching, pitch shifting, and noise injection to synthetically increase dataset size.'
+                },
+                {
+                    icon: '3️⃣',
+                    title: 'Balance Dataset',
+                    desc: 'Ensure each emotion has roughly equal samples to prevent class imbalance bias.'
+                }
+            ];
+            
+            if (training.model_type === 'baseline') {
+                recs.push({
+                    icon: '4️⃣',
+                    title: 'Try CNN-BiLSTM Model',
+                    desc: 'The CNN-BiLSTM model can capture temporal patterns better than baseline CNN.'
+                });
+            }
+            
+            recs.push({
+                icon: '5️⃣',
+                title: 'Recording Quality',
+                desc: 'Record in a quiet environment with consistent audio quality. 3-5 seconds per sample is ideal.'
+            });
+            
+            if (accuracy < 50) {
+                recs.push({
+                    icon: '6️⃣',
+                    title: 'Hyperparameter Tuning',
+                    desc: 'Experiment with learning rate, batch size, and model architecture for better results.'
+                });
+            }
+            
+            let html = '<div style="display: grid; gap: 12px;">';
+            
+            recs.forEach(rec => {
+                html += `
+                    <div style="display: flex; gap: 12px; align-items: flex-start; background: rgba(255,255,255,0.1); padding: 16px; border-radius: var(--radius-md);">
+                        <span style="font-size: 24px;">${rec.icon}</span>
+                        <div>
+                            <div class="font-bold" style="margin-bottom: 4px;">${rec.title}</div>
+                            <div style="opacity: 0.9; font-size: 14px;">${rec.desc}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
+        // ============ Copy Config ============
+        function copyConfig() {
+            const config = document.getElementById('config-json').textContent;
+            navigator.clipboard.writeText(config).then(() => {
+                alert('Configuration copied to clipboard!');
+            });
+        }
+        
+        // ============ Initialize ============
+        document.addEventListener('DOMContentLoaded', () => {
+            analyzePerformance();
+            generateRecommendations();
+        });
+    </script>
+</body>
+</html>

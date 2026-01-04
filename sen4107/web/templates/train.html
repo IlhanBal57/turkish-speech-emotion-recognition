@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turkish SER - Train Model</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <span class="logo-icon">🎤</span>
+                <span class="logo-text">Turkish SER</span>
+            </a>
+            <nav class="nav">
+                <a href="/" class="nav-link">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/record" class="nav-link">
+                    <span class="nav-icon">🎙️</span>
+                    <span>Record</span>
+                </a>
+                <a href="/train" class="nav-link active">
+                    <span class="nav-icon">🚀</span>
+                    <span>Train</span>
+                </a>
+                <a href="/history" class="nav-link">
+                    <span class="nav-icon">📈</span>
+                    <span>History</span>
+                </a>
+                <a href="/dataset" class="nav-link">
+                    <span class="nav-icon">📂</span>
+                    <span>Dataset</span>
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <!-- Page Header -->
+            <div class="page-header slide-up">
+                <h1 class="page-title">🚀 Train Model</h1>
+                <p class="page-subtitle">Train your speech emotion recognition model</p>
+            </div>
+
+            <!-- Model Selection -->
+            <div id="model-selection" class="card slide-up mb-4" style="animation-delay: 0.1s;">
+                <div class="card-title">
+                    <span>🧠</span>
+                    <span>Select Model Architecture</span>
+                </div>
+                
+                <div class="grid grid-2 mb-4">
+                    <!-- Baseline CNN -->
+                    <div id="model-baseline" class="model-card" onclick="selectModel('baseline')">
+                        <div class="model-name" style="color: var(--accent-primary);">
+                            Baseline CNN
+                        </div>
+                        <p class="model-description">
+                            Pure convolutional neural network for spatial feature extraction from mel-spectrograms.
+                        </p>
+                        <div class="model-specs">
+                            <div class="model-spec">
+                                <span class="model-spec-icon">⚡</span>
+                                <span>Fast training (~5-10 min)</span>
+                            </div>
+                            <div class="model-spec">
+                                <span class="model-spec-icon">💾</span>
+                                <span>Parameters: ~287K</span>
+                            </div>
+                            <div class="model-spec">
+                                <span class="model-spec-icon">🎯</span>
+                                <span>Best for: Quick experiments</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CNN-BiLSTM -->
+                    <div id="model-comparison" class="model-card model-card-secondary" onclick="selectModel('comparison')">
+                        <div class="model-name" style="color: var(--accent-secondary);">
+                            CNN-BiLSTM
+                        </div>
+                        <p class="model-description">
+                            Hybrid architecture combining CNN and bidirectional LSTM for temporal modeling.
+                        </p>
+                        <div class="model-specs">
+                            <div class="model-spec">
+                                <span class="model-spec-icon">⏱️</span>
+                                <span>Slower training (~15-30 min)</span>
+                            </div>
+                            <div class="model-spec">
+                                <span class="model-spec-icon">💾</span>
+                                <span>Parameters: ~892K</span>
+                            </div>
+                            <div class="model-spec">
+                                <span class="model-spec-icon">🎯</span>
+                                <span>Best for: Higher accuracy</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Start Button -->
+                <div class="text-center">
+                    <button id="start-btn" class="btn btn-primary btn-lg" disabled onclick="startTraining()">
+                        <span>🚀</span>
+                        <span>Start Training</span>
+                    </button>
+                    <p class="text-muted mt-2" id="start-hint">Select a model to continue</p>
+                </div>
+            </div>
+
+            <!-- Training Progress -->
+            <div id="training-progress" class="slide-up" style="display: none;">
+                <!-- Status Card -->
+                <div class="card mb-4">
+                    <div class="flex-between mb-3">
+                        <div class="card-title">
+                            <span>⚡</span>
+                            <span id="training-status">Training in Progress</span>
+                        </div>
+                        <button id="stop-btn" class="btn btn-danger btn-sm" onclick="stopTraining()">
+                            ⏹️ Stop Training
+                        </button>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <!-- Epoch Counter -->
+                    <div class="epoch-display" style="text-align: center; padding: 20px 0;">
+                        <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">Current Epoch</div>
+                        <div style="font-size: 48px; font-weight: 700; color: var(--accent-primary);" id="current-epoch">0</div>
+                        <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">Training in progress...</div>
+                    </div>
+
+                    <!-- Metrics Grid -->
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-label">Train Accuracy</div>
+                            <div class="metric-value" id="train-acc">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Val Accuracy</div>
+                            <div class="metric-value secondary" id="val-acc">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Train Loss</div>
+                            <div class="metric-value" id="train-loss" style="font-size: 20px;">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Val Loss</div>
+                            <div class="metric-value" id="val-loss" style="font-size: 20px;">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Best Val Acc</div>
+                            <div class="metric-value success" id="best-val-acc">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Elapsed Time</div>
+                            <div class="metric-value" id="elapsed-time" style="font-size: 20px;">00:00:00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Charts -->
+                <div class="grid grid-2 mb-4">
+                    <!-- Accuracy Chart -->
+                    <div class="chart-container" style="height: 280px; max-height: 280px; overflow: hidden;">
+                        <div class="chart-header">
+                            <span class="chart-title">📈 Accuracy Over Epochs</span>
+                            <div class="chart-legend">
+                                <div class="chart-legend-item">
+                                    <div class="chart-legend-dot" style="background: var(--accent-primary);"></div>
+                                    <span>Train</span>
+                                </div>
+                                <div class="chart-legend-item">
+                                    <div class="chart-legend-dot" style="background: var(--accent-secondary);"></div>
+                                    <span>Validation</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="height: 220px; position: relative;">
+                            <canvas id="accuracyChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Loss Chart -->
+                    <div class="chart-container" style="height: 280px; max-height: 280px; overflow: hidden;">
+                        <div class="chart-header">
+                            <span class="chart-title">📉 Loss Over Epochs</span>
+                            <div class="chart-legend">
+                                <div class="chart-legend-item">
+                                    <div class="chart-legend-dot" style="background: var(--accent-error);"></div>
+                                    <span>Train</span>
+                                </div>
+                                <div class="chart-legend-item">
+                                    <div class="chart-legend-dot" style="background: var(--accent-warning);"></div>
+                                    <span>Validation</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="height: 220px; position: relative;">
+                            <canvas id="lossChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Console Output -->
+                <div class="card">
+                    <div class="flex-between mb-3">
+                        <div class="card-title">
+                            <span>💻</span>
+                            <span>Console Output</span>
+                        </div>
+                        <button class="btn btn-ghost btn-sm" onclick="clearConsole()">Clear</button>
+                    </div>
+                    <div id="console-output" class="console">
+                        <div class="console-line pulse">
+                            <span class="console-time">[--:--:--]</span>
+                            <span class="console-message info">Waiting for training to start...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Completion Message -->
+            <div id="completion-card" class="card slide-up" style="display: none; background: var(--gradient-success); border: none;">
+                <div class="text-center" style="color: white;">
+                    <div style="font-size: 64px; margin-bottom: 20px;">🎉</div>
+                    <h2 style="margin-bottom: 12px;">Training Completed!</h2>
+                    <p style="opacity: 0.9; margin-bottom: 24px;">
+                        Your model has been trained successfully.
+                    </p>
+                    <div class="flex-center gap-2">
+                        <a href="/history" class="btn" style="background: white; color: var(--accent-success);">
+                            📈 View Results
+                        </a>
+                        <button onclick="resetTraining()" class="btn btn-outline" style="border-color: white; color: white;">
+                            🔄 Train Another
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content slide-up">
+            <div class="modal-header">
+                <div class="modal-icon">🚀</div>
+                <h2 class="modal-title">Start Training?</h2>
+            </div>
+            <p class="modal-description" id="modal-description">
+                You are about to start training the <strong id="modal-model-name">Baseline CNN</strong> model.
+            </p>
+            <div class="modal-info">
+                <div class="modal-info-item">
+                    <span class="modal-info-icon">⏱️</span>
+                    <span>Estimated time: <strong>10-30 minutes</strong></span>
+                </div>
+                <div class="modal-info-item">
+                    <span class="modal-info-icon">💾</span>
+                    <span>Checkpoints will be saved automatically</span>
+                </div>
+                <div class="modal-info-item">
+                    <span class="modal-info-icon">📊</span>
+                    <span>Monitor progress in real-time</span>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" onclick="closeConfirmModal()">
+                    Cancel
+                </button>
+                <button class="btn btn-primary" onclick="confirmStartTraining()">
+                    <span>🚀</span>
+                    <span>Start Training</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        // ============ Variables ============
+        let selectedModel = null;
+        let currentTrainingId = null;
+        let trainingStartTime = null;
+        let timerInterval = null;
+        let accuracyChart = null;
+        let lossChart = null;
+        let trainingData = {
+            epochs: [],
+            trainAcc: [],
+            valAcc: [],
+            trainLoss: [],
+            valLoss: []
+        };
+        let bestValAcc = 0;
+
+        // ============ Toast Notifications ============
+        function showToast(type, title, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type]}</span>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('hiding');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // ============ Socket.IO ============
+        const socket = io();
+
+        socket.on('connect', () => {
+            console.log('✅ Connected to server');
+            checkTrainingStatus();
+            
+            // Keep connection alive
+            setInterval(() => socket.emit('ping'), 25000);
+        });
+
+        socket.on('disconnect', () => {
+            console.log('❌ Disconnected');
+            addConsoleLog('⚠️ Connection lost. Reconnecting...', 'warning');
+        });
+
+        socket.on('reconnect', () => {
+            addConsoleLog('✅ Connection restored', 'info');
+            checkTrainingStatus();
+        });
+
+        socket.on('training_started', (data) => {
+            console.log('Training started:', data);
+            currentTrainingId = data.training_id;
+            showTrainingUI();
+            addConsoleLog(`🚀 Training started - ${data.model_type} model`, 'info');
+            addConsoleLog(`📋 Training ID: ${data.training_id}`, 'info');
+        });
+
+        socket.on('training_log', (data) => {
+            if (data.log && data.log.trim()) {
+                addConsoleLog(data.log);
+            }
+        });
+
+        socket.on('training_progress', (data) => {
+            updateProgress(data);
+        });
+
+        socket.on('training_completed', (data) => {
+            console.log('Training completed:', data);
+            trainingCompleted(data);
+        });
+
+        socket.on('training_failed', (data) => {
+            console.error('Training failed:', data);
+            addConsoleLog(`❌ Training failed: ${data.error}`, 'error');
+            showToast('error', 'Training Failed', data.error);
+            document.getElementById('training-status').textContent = '❌ Training Failed';
+            clearInterval(timerInterval);
+        });
+
+        socket.on('training_stopped', (data) => {
+            addConsoleLog('⏸️ Training stopped by user', 'warning');
+            document.getElementById('training-status').textContent = '⏸️ Training Stopped';
+            clearInterval(timerInterval);
+            showToast('info', 'Training Stopped', 'Training was stopped by user');
+        });
+
+        // ============ Model Selection ============
+        function selectModel(model) {
+            selectedModel = model;
+            
+            // Update UI
+            document.querySelectorAll('.model-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            document.getElementById(`model-${model}`).classList.add('selected');
+            document.getElementById('start-btn').disabled = false;
+            document.getElementById('start-hint').textContent = `Ready to train ${model === 'baseline' ? 'Baseline CNN' : 'CNN-BiLSTM'}`;
+        }
+
+        // ============ Training Control ============
+        function startTraining() {
+            if (!selectedModel) {
+                showToast('warning', 'Select Model', 'Please select a model first');
+                return;
+            }
+            
+            // Show custom modal
+            const modelName = selectedModel === 'baseline' ? 'Baseline CNN' : 'CNN-BiLSTM';
+            document.getElementById('modal-model-name').textContent = modelName;
+            document.getElementById('confirm-modal').style.display = 'flex';
+        }
+        
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').style.display = 'none';
+        }
+        
+        async function confirmStartTraining() {
+            closeConfirmModal();
+            
+            try {
+                const response = await fetch('/api/training/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model_type: selectedModel })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentTrainingId = result.data.training_id;
+                    showTrainingUI();
+                    showToast('success', 'Training Started', `Model training has begun`);
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                showToast('error', 'Error', error.message);
+            }
+        }
+
+        function stopTraining() {
+            const confirmed = confirm('⚠️ Stop training?\n\nProgress will be saved but training will end.');
+            if (!confirmed) return;
+
+            socket.emit('stop_training');
+            document.getElementById('stop-btn').disabled = true;
+            addConsoleLog('⏸️ Stopping training...', 'warning');
+        }
+
+        // ============ UI Updates ============
+        function showTrainingUI() {
+            document.getElementById('model-selection').style.display = 'none';
+            document.getElementById('training-progress').style.display = 'block';
+            document.getElementById('completion-card').style.display = 'none';
+            
+            // Reset charts
+            initCharts();
+            
+            // Start timer
+            trainingStartTime = Date.now();
+            startTimer();
+            
+            // Reset training data
+            trainingData = { epochs: [], trainAcc: [], valAcc: [], trainLoss: [], valLoss: [] };
+            bestValAcc = 0;
+        }
+
+        function updateProgress(data) {
+            // Update epoch display
+            document.getElementById('current-epoch').textContent = data.epoch;
+            
+            // Update metrics
+            const trainAccPercent = (data.train_acc * 100).toFixed(1);
+            const valAccPercent = (data.val_acc * 100).toFixed(1);
+            
+            document.getElementById('train-acc').textContent = `${trainAccPercent}%`;
+            document.getElementById('val-acc').textContent = `${valAccPercent}%`;
+            document.getElementById('train-loss').textContent = data.train_loss.toFixed(4);
+            document.getElementById('val-loss').textContent = data.val_loss.toFixed(4);
+            
+            // Update best val acc
+            if (data.val_acc > bestValAcc) {
+                bestValAcc = data.val_acc;
+                document.getElementById('best-val-acc').textContent = `${(bestValAcc * 100).toFixed(1)}%`;
+            }
+            
+            // Update charts
+            trainingData.epochs.push(data.epoch);
+            trainingData.trainAcc.push(data.train_acc * 100);
+            trainingData.valAcc.push(data.val_acc * 100);
+            trainingData.trainLoss.push(data.train_loss);
+            trainingData.valLoss.push(data.val_loss);
+            
+            updateCharts();
+            
+            // Console log - sadece epoch sayısı
+            addConsoleLog(`Epoch ${data.epoch} - Train: ${trainAccPercent}% | Val: ${valAccPercent}%`);
+        }
+
+        function trainingCompleted(data) {
+            clearInterval(timerInterval);
+            
+            // Update epoch display to show completed
+            const epochDisplay = document.getElementById('current-epoch');
+            if (epochDisplay) {
+                epochDisplay.nextElementSibling && (epochDisplay.nextElementSibling.textContent = '✅ Training Completed!');
+            }
+            
+            document.getElementById('training-status').textContent = '✅ Training Completed!';
+            document.getElementById('stop-btn').style.display = 'none';
+            
+            addConsoleLog('🎉 Training completed successfully!', 'info');
+            showToast('success', 'Training Complete', `Best accuracy: ${(bestValAcc * 100).toFixed(1)}%`);
+            
+            // Redirect to training detail page after 2 seconds
+            setTimeout(() => {
+                window.location.href = `/history/${data.training_id}`;
+            }, 2000);
+        }
+
+        function resetTraining() {
+            document.getElementById('model-selection').style.display = 'block';
+            document.getElementById('training-progress').style.display = 'none';
+            document.getElementById('completion-card').style.display = 'none';
+            document.getElementById('stop-btn').style.display = 'inline-flex';
+            document.getElementById('stop-btn').disabled = false;
+            document.getElementById('training-status').textContent = 'Training in Progress';
+            
+            // Reset selection
+            selectedModel = null;
+            document.querySelectorAll('.model-card').forEach(card => card.classList.remove('selected'));
+            document.getElementById('start-btn').disabled = true;
+            document.getElementById('start-hint').textContent = 'Select a model to continue';
+            
+            // Clear console
+            clearConsole();
+        }
+
+        // ============ Timer ============
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                const elapsed = Date.now() - trainingStartTime;
+                const hours = Math.floor(elapsed / 3600000);
+                const minutes = Math.floor((elapsed % 3600000) / 60000);
+                const seconds = Math.floor((elapsed % 60000) / 1000);
+                
+                document.getElementById('elapsed-time').textContent = 
+                    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        // ============ Console ============
+        function addConsoleLog(message, type = '') {
+            const console = document.getElementById('console-output');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const line = document.createElement('div');
+            line.className = 'console-line';
+            line.innerHTML = `
+                <span class="console-time">[${timestamp}]</span>
+                <span class="console-message ${type}">${message}</span>
+            `;
+            
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function clearConsole() {
+            document.getElementById('console-output').innerHTML = `
+                <div class="console-line">
+                    <span class="console-time">[${new Date().toLocaleTimeString()}]</span>
+                    <span class="console-message info">Console cleared</span>
+                </div>
+            `;
+        }
+
+        // ============ Charts ============
+        function initCharts() {
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 300 },
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#94a3b8' },
+                        title: { display: true, text: 'Epoch', color: '#94a3b8' }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#94a3b8' },
+                        beginAtZero: true
+                    }
+                }
+            };
+
+            // Accuracy Chart
+            if (accuracyChart) accuracyChart.destroy();
+            accuracyChart = new Chart(document.getElementById('accuracyChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Train Accuracy',
+                            data: [],
+                            borderColor: '#00d4ff',
+                            backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Val Accuracy',
+                            data: [],
+                            borderColor: '#7c3aed',
+                            backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        ...chartOptions.scales,
+                        y: {
+                            ...chartOptions.scales.y,
+                            max: 100,
+                            title: { display: true, text: 'Accuracy (%)', color: '#94a3b8' }
+                        }
+                    }
+                }
+            });
+
+            // Loss Chart
+            if (lossChart) lossChart.destroy();
+            lossChart = new Chart(document.getElementById('lossChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Train Loss',
+                            data: [],
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Val Loss',
+                            data: [],
+                            borderColor: '#fbbf24',
+                            backgroundColor: 'rgba(251, 191, 36, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        ...chartOptions.scales,
+                        y: {
+                            ...chartOptions.scales.y,
+                            title: { display: true, text: 'Loss', color: '#94a3b8' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCharts() {
+            // Update accuracy chart
+            accuracyChart.data.labels = trainingData.epochs;
+            accuracyChart.data.datasets[0].data = trainingData.trainAcc;
+            accuracyChart.data.datasets[1].data = trainingData.valAcc;
+            accuracyChart.update('none');
+
+            // Update loss chart
+            lossChart.data.labels = trainingData.epochs;
+            lossChart.data.datasets[0].data = trainingData.trainLoss;
+            lossChart.data.datasets[1].data = trainingData.valLoss;
+            lossChart.update('none');
+        }
+
+        // ============ Check Training Status ============
+        async function checkTrainingStatus() {
+            try {
+                const response = await fetch('/api/training/current');
+                const result = await response.json();
+                
+                if (result.success && result.data.is_training) {
+                    currentTrainingId = result.data.training_id;
+                    showTrainingUI();
+                    
+                    // Use stored start time if available
+                    if (result.data.start_time) {
+                        trainingStartTime = new Date(result.data.start_time).getTime();
+                    }
+                    
+                    addConsoleLog('⚠️ Reconnected to running training session', 'warning');
+                    addConsoleLog(`📋 Training ID: ${result.data.training_id}`, 'info');
+                }
+            } catch (error) {
+                console.error('Error checking status:', error);
+            }
+        }
+
+        // ============ Initialize ============
+        document.addEventListener('DOMContentLoaded', () => {
+            // Charts will be initialized when training starts
+        });
+    </script>
+</body>
+</html>

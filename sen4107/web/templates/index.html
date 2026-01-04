@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turkish SER - Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <span class="logo-icon">🎤</span>
+                <span class="logo-text">Turkish SER</span>
+            </a>
+            <nav class="nav">
+                <a href="/" class="nav-link active">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/record" class="nav-link">
+                    <span class="nav-icon">🎙️</span>
+                    <span>Record</span>
+                </a>
+                <a href="/train" class="nav-link">
+                    <span class="nav-icon">🚀</span>
+                    <span>Train</span>
+                </a>
+                <a href="/history" class="nav-link">
+                    <span class="nav-icon">📈</span>
+                    <span>History</span>
+                </a>
+                <a href="/dataset" class="nav-link">
+                    <span class="nav-icon">📂</span>
+                    <span>Dataset</span>
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <!-- Page Header -->
+            <div class="page-header slide-up">
+                <h1 class="page-title">🎯 Turkish Speech Emotion Recognition</h1>
+                <p class="page-subtitle">Deep learning powered voice emotion analysis system</p>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="grid grid-2 mb-4">
+                <div class="card slide-up" style="animation-delay: 0.1s;">
+                    <div class="flex-between mb-3">
+                        <div class="card-title">
+                            <span>🎙️</span>
+                            <span>Record Audio</span>
+                        </div>
+                        <span class="badge badge-primary">New</span>
+                    </div>
+                    <p class="text-secondary mb-3">
+                        Add new voice samples to expand your dataset. 
+                        Record emotions in Turkish for better training results.
+                    </p>
+                    <a href="/record" class="btn btn-primary">
+                        <span>Start Recording</span>
+                        <span>→</span>
+                    </a>
+                </div>
+                
+                <div class="card slide-up" style="animation-delay: 0.2s;">
+                    <div class="flex-between mb-3">
+                        <div class="card-title">
+                            <span>🧠</span>
+                            <span>Train Model</span>
+                        </div>
+                        <span class="badge badge-info">AI</span>
+                    </div>
+                    <p class="text-secondary mb-3">
+                        Train CNN or CNN-BiLSTM models on your dataset.
+                        Monitor training progress in real-time.
+                    </p>
+                    <a href="/train" class="btn btn-secondary">
+                        <span>Start Training</span>
+                        <span>→</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Dataset Overview -->
+            <div class="card slide-up mb-4" style="animation-delay: 0.3s;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span>📊</span>
+                        <span>Dataset Overview</span>
+                    </div>
+                    <a href="/dataset" class="btn btn-ghost btn-sm">View All →</a>
+                </div>
+                
+                <div class="stats-grid" id="dataset-stats">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Files</div>
+                        <div class="stat-value" id="total-files">
+                            <div class="skeleton" style="width: 60px; height: 32px;"></div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">😊 Mutlu</div>
+                        <div class="stat-value" id="mutlu-count">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">😢 Üzgün</div>
+                        <div class="stat-value" id="uzgun-count">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">😠 Kızgın</div>
+                        <div class="stat-value" id="kizgin-count">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">😐 Nötr</div>
+                        <div class="stat-value" id="notr-count">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">😨 Korku</div>
+                        <div class="stat-value" id="korku-count">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">😲 Şaşkın</div>
+                        <div class="stat-value" id="saskin-count">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">🤢 İğrenme</div>
+                        <div class="stat-value" id="igrenme-count">-</div>
+                    </div>
+                </div>
+
+            <!-- Training History & System Info -->
+            <div class="grid grid-2">
+                <!-- Recent Training Sessions -->
+                <div class="card slide-up" style="animation-delay: 0.4s;">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>🏃</span>
+                            <span>Recent Trainings</span>
+                        </div>
+                        <a href="/history" class="btn btn-ghost btn-sm">View All →</a>
+                    </div>
+                    
+                    <div id="recent-training">
+                        <div class="empty-state">
+                            <div class="spinner" style="margin: 0 auto;"></div>
+                            <p class="text-secondary mt-2">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Info & About -->
+                <div class="slide-up" style="animation-delay: 0.5s;">
+                    <!-- Active Training Status -->
+                    <div class="card mb-3" id="active-training-card" style="display: none;">
+                        <div class="card-title">
+                            <span>⚡</span>
+                            <span>Active Training</span>
+                        </div>
+                        <div id="active-training-content">
+                            <!-- Will be populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- System Info -->
+                    <div class="card mb-3">
+                        <div class="card-title">
+                            <span>💻</span>
+                            <span>System Info</span>
+                        </div>
+                        <div class="text-secondary" style="line-height: 2;">
+                            <div class="flex-between">
+                                <span>Framework</span>
+                                <span class="text-primary font-semibold">PyTorch 2.9.1</span>
+                            </div>
+                            <div class="flex-between">
+                                <span>Device</span>
+                                <span class="text-primary font-semibold" id="device-info">CPU</span>
+                            </div>
+                            <div class="flex-between">
+                                <span>Status</span>
+                                <span class="badge badge-success">Online</span>
+                            </div>
+                            <div class="flex-between">
+                                <span>WebSocket</span>
+                                <span class="badge badge-success" id="ws-status">Connected</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- About -->
+                    <div class="card">
+                        <div class="card-title">
+                            <span>ℹ️</span>
+                            <span>About</span>
+                        </div>
+                        <div class="text-secondary" style="line-height: 2;">
+                            <div class="flex-between">
+                                <span>Project</span>
+                                <span class="text-primary font-semibold">SEN4107 Neural Networks</span>
+                            </div>
+                            <div class="flex-between">
+                                <span>Models</span>
+                                <span class="text-primary font-semibold">CNN & CNN-BiLSTM</span>
+                            </div>
+                            <div class="flex-between">
+                                <span>Version</span>
+                                <span class="text-primary font-semibold">2.0.0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        // ============ Toast Notifications ============
+        function showToast(type, title, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: '✅',
+                error: '❌',
+                warning: '⚠️',
+                info: 'ℹ️'
+            };
+            
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type]}</span>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('hiding');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // ============ Socket.IO ============
+        const socket = io();
+        
+        socket.on('connect', () => {
+            console.log('✅ Connected to server');
+            document.getElementById('ws-status').textContent = 'Connected';
+            document.getElementById('ws-status').className = 'badge badge-success';
+            checkActiveTraining();
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('❌ Disconnected');
+            document.getElementById('ws-status').textContent = 'Disconnected';
+            document.getElementById('ws-status').className = 'badge badge-error';
+        });
+
+        socket.on('training_progress', (data) => {
+            updateActiveTraining(data);
+        });
+
+        socket.on('training_completed', () => {
+            document.getElementById('active-training-card').style.display = 'none';
+            showToast('success', 'Training Complete', 'Model training finished successfully!');
+            loadTrainingHistory();
+        });
+
+        // ============ Dataset Stats ============
+        async function loadDatasetStats() {
+            try {
+                const response = await fetch('/api/dataset/stats');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const data = result.data;
+                    document.getElementById('total-files').textContent = data.total_files;
+                    
+                    const emotions = data.emotions;
+                    for (const [emotion, count] of Object.entries(emotions)) {
+                        const element = document.getElementById(`${emotion}-count`);
+                        if (element) {
+                            element.textContent = count;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading dataset stats:', error);
+                showToast('error', 'Error', 'Failed to load dataset statistics');
+            }
+        }
+
+        // ============ Training History ============
+        async function loadTrainingHistory() {
+            try {
+                const response = await fetch('/api/training/history?limit=5');
+                const result = await response.json();
+                
+                if (result.success && result.data.length > 0) {
+                    displayTrainings(result.data);
+                } else {
+                    document.getElementById('recent-training').innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">🎓</div>
+                            <div class="empty-title">No Training Yet</div>
+                            <p class="empty-description">Start your first training to see results here!</p>
+                            <a href="/train" class="btn btn-primary">Start Training</a>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading training history:', error);
+            }
+        }
+
+        function displayTrainings(trainings) {
+            const container = document.getElementById('recent-training');
+            let html = '';
+            
+            trainings.forEach(training => {
+                const statusClass = {
+                    completed: 'badge-success',
+                    running: 'badge-warning',
+                    failed: 'badge-error',
+                    stopped: 'badge-info'
+                }[training.status] || 'badge-info';
+                
+                const accuracy = training.best_val_acc 
+                    ? `${(training.best_val_acc * 100).toFixed(1)}%` 
+                    : '-';
+                
+                const date = new Date(training.created_at).toLocaleDateString('tr-TR', {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                html += `
+                    <a href="/history/${training.id}" class="training-item" style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 16px;
+                        background: var(--bg-glass);
+                        border: 1px solid var(--border-color);
+                        border-radius: var(--radius-md);
+                        margin-bottom: 12px;
+                        text-decoration: none;
+                        color: inherit;
+                        transition: var(--transition-normal);
+                    ">
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 4px;">
+                                #${training.id} - ${training.model_type === 'baseline' ? 'Baseline CNN' : 'CNN-BiLSTM'}
+                            </div>
+                            <div class="text-muted" style="font-size: 12px;">${date}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 18px; font-weight: 700; color: var(--accent-primary);">
+                                ${accuracy}
+                            </div>
+                            <span class="badge ${statusClass}">${training.status}</span>
+                        </div>
+                    </a>
+                `;
+            });
+            
+            container.innerHTML = html;
+            
+            // Add hover effects
+            document.querySelectorAll('.training-item').forEach(item => {
+                item.addEventListener('mouseenter', () => {
+                    item.style.borderColor = 'var(--accent-primary)';
+                    item.style.transform = 'translateX(4px)';
+                });
+                item.addEventListener('mouseleave', () => {
+                    item.style.borderColor = 'var(--border-color)';
+                    item.style.transform = 'translateX(0)';
+                });
+            });
+        }
+
+        // ============ Active Training ============
+        async function checkActiveTraining() {
+            try {
+                const response = await fetch('/api/training/current');
+                const result = await response.json();
+                
+                if (result.success && result.data.is_training) {
+                    document.getElementById('active-training-card').style.display = 'block';
+                    updateActiveTraining({
+                        epoch: 0,
+                        total_epochs: 100,
+                        train_acc: 0,
+                        val_acc: 0
+                    });
+                }
+            } catch (error) {
+                console.error('Error checking training status:', error);
+            }
+        }
+
+        function updateActiveTraining(data) {
+            document.getElementById('active-training-card').style.display = 'block';
+            
+            const progress = (data.epoch / data.total_epochs) * 100;
+            
+            document.getElementById('active-training-content').innerHTML = `
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span class="progress-label-text">Epoch ${data.epoch}/${data.total_epochs}</span>
+                        <span class="progress-label-value">${progress.toFixed(0)}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${Math.max(progress, 5)}%;">
+                            <span class="progress-text">${progress.toFixed(0)}%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-between mt-2 text-secondary">
+                    <span>Train Acc: <strong class="text-primary">${(data.train_acc * 100).toFixed(1)}%</strong></span>
+                    <span>Val Acc: <strong class="text-accent">${(data.val_acc * 100).toFixed(1)}%</strong></span>
+                </div>
+                <a href="/train" class="btn btn-outline btn-sm mt-2 w-full">View Details →</a>
+            `;
+        }
+
+        // ============ Initialize ============
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDatasetStats();
+            loadTrainingHistory();
+        });
+    </script>
+
+    <style>
+        .training-item:hover {
+            border-color: var(--accent-primary) !important;
+            transform: translateX(4px) !important;
+        }
+    </style>
+</body>
+</html>

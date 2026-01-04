@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turkish SER - Record Audio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- WaveSurfer for waveform visualization -->
+    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <span class="logo-icon">🎤</span>
+                <span class="logo-text">Turkish SER</span>
+            </a>
+            <nav class="nav">
+                <a href="/" class="nav-link">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/record" class="nav-link active">
+                    <span class="nav-icon">🎙️</span>
+                    <span>Record</span>
+                </a>
+                <a href="/train" class="nav-link">
+                    <span class="nav-icon">🚀</span>
+                    <span>Train</span>
+                </a>
+                <a href="/history" class="nav-link">
+                    <span class="nav-icon">📈</span>
+                    <span>History</span>
+                </a>
+                <a href="/dataset" class="nav-link">
+                    <span class="nav-icon">📂</span>
+                    <span>Dataset</span>
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <!-- Page Header -->
+            <div class="page-header slide-up">
+                <h1 class="page-title">🎙️ Record Audio Sample</h1>
+                <p class="page-subtitle">Record your voice expressing different emotions</p>
+            </div>
+
+            <div class="grid grid-2">
+                <!-- Recording Interface -->
+                <div class="card slide-up" style="animation-delay: 0.1s;">
+                    <div class="card-title">
+                        <span>🎤</span>
+                        <span>Recording Studio</span>
+                    </div>
+                    
+                    <!-- Emotion Selection -->
+                    <div class="form-group">
+                        <label class="form-label">Select Emotion</label>
+                        <div class="emotion-grid" id="emotion-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px;">
+                            <div class="emotion-card" data-emotion="mutlu" onclick="selectEmotion('mutlu')">
+                                <span class="emotion-icon">😊</span>
+                                <span class="emotion-name">Mutlu</span>
+                                <span class="emotion-count">Happy</span>
+                            </div>
+                            <div class="emotion-card" data-emotion="uzgun" onclick="selectEmotion('uzgun')">
+                                <span class="emotion-icon">😢</span>
+                                <span class="emotion-name">Üzgün</span>
+                                <span class="emotion-count">Sad</span>
+                            </div>
+                            <div class="emotion-card" data-emotion="kizgin" onclick="selectEmotion('kizgin')">
+                                <span class="emotion-icon">😠</span>
+                                <span class="emotion-name">Kızgın</span>
+                                <span class="emotion-count">Angry</span>
+                            </div>
+                            <div class="emotion-card" data-emotion="notr" onclick="selectEmotion('notr')">
+                                <span class="emotion-icon">😐</span>
+                                <span class="emotion-name">Nötr</span>
+                                <span class="emotion-count">Neutral</span>
+                            </div>
+                            <div class="emotion-card" data-emotion="korku" onclick="selectEmotion('korku')">
+                                <span class="emotion-icon">😨</span>
+                                <span class="emotion-name">Korku</span>
+                                <span class="emotion-count">Fear</span>
+                            </div>
+                            <div class="emotion-card" data-emotion="saskin" onclick="selectEmotion('saskin')">
+                                <span class="emotion-icon">😲</span>
+                                <span class="emotion-name">Şaşkın</span>
+                                <span class="emotion-count">Surprised</span>
+                            </div>
+                            <div class="emotion-card" data-emotion="igrenme" onclick="selectEmotion('igrenme')">
+                                <span class="emotion-icon">🤢</span>
+                                <span class="emotion-name">İğrenme</span>
+                                <span class="emotion-count">Disgust</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recording Button & Status -->
+                    <div class="text-center mt-4 mb-3">
+                        <div id="recording-status" class="mb-3">
+                            <p class="text-secondary" id="status-text">Select an emotion and press record</p>
+                        </div>
+                        
+                        <!-- Timer -->
+                        <div id="timer" class="record-timer mb-3" style="display: none;">00:00</div>
+                        
+                        <!-- Record Button -->
+                        <button id="record-btn" class="record-button" disabled>
+                            <span class="record-icon">🎙️</span>
+                        </button>
+                        
+                        <p class="text-muted mt-2" id="record-hint">Select an emotion first</p>
+                    </div>
+
+                    <!-- Waveform Visualization -->
+                    <div id="waveform-container" style="display: none;" class="mt-4">
+                        <div class="form-label">Recording Preview</div>
+                        <div class="audio-player">
+                            <div id="waveform" class="audio-waveform"></div>
+                            <div class="audio-controls mt-2">
+                                <button id="play-btn" class="btn btn-ghost btn-sm" onclick="togglePlayback()">
+                                    <span id="play-icon">▶️</span> Play
+                                </button>
+                                <span id="audio-duration" class="audio-time">0:00 / 0:00</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-2 mt-3">
+                            <button id="save-btn" class="btn btn-success" onclick="saveRecording()">
+                                💾 Save to Dataset
+                            </button>
+                            <button id="discard-btn" class="btn btn-ghost" onclick="discardRecording()">
+                                🗑️ Discard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instructions & Tips -->
+                <div class="slide-up" style="animation-delay: 0.2s;">
+                    <!-- Instructions Card -->
+                    <div class="card mb-3">
+                        <div class="card-title">
+                            <span>📝</span>
+                            <span>Recording Guide</span>
+                        </div>
+                        
+                        <div class="text-secondary" style="line-height: 2;">
+                            <h4 class="text-primary mb-2">How to Record</h4>
+                            <ol style="padding-left: 20px; margin-bottom: 20px;">
+                                <li>Select the emotion you want to express</li>
+                                <li>Click the record button to start</li>
+                                <li>Speak for <strong class="text-accent">3-5 seconds</strong></li>
+                                <li>Click again to stop recording</li>
+                                <li>Preview and save or discard</li>
+                            </ol>
+                            
+                            <h4 class="text-primary mb-2">Recording Tips</h4>
+                            <ul style="padding-left: 20px;">
+                                <li>🔇 Use a <strong>quiet environment</strong></li>
+                                <li>🎤 Speak <strong>clearly</strong> and naturally</li>
+                                <li>⏱️ Keep recordings <strong>3-5 seconds</strong></li>
+                                <li>😊 Express emotions <strong>genuinely</strong></li>
+                                <li>🔄 Record <strong>multiple variations</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Example Phrases Card -->
+                    <div class="card">
+                        <div class="card-title">
+                            <span>💬</span>
+                            <span>Example Phrases</span>
+                        </div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div class="stat-card" style="padding: 16px;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-size: 24px;">😊</span>
+                                    <div>
+                                        <div class="text-primary font-semibold">Mutlu</div>
+                                        <div class="text-secondary">"Bugün harika bir gün!"</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="stat-card" style="padding: 16px;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-size: 24px;">😢</span>
+                                    <div>
+                                        <div class="text-primary font-semibold">Üzgün</div>
+                                        <div class="text-secondary">"Çok üzgünüm, yapamadım."</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="stat-card" style="padding: 16px;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-size: 24px;">😠</span>
+                                    <div>
+                                        <div class="text-primary font-semibold">Kızgın</div>
+                                        <div class="text-secondary">"Bu kabul edilemez!"</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="stat-card" style="padding: 16px;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-size: 24px;">😐</span>
+                                    <div>
+                                        <div class="text-primary font-semibold">Nötr</div>
+                                        <div class="text-secondary">"Tamam, anladım."</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script>
+        // ============ Toast Notifications ============
+        function showToast(type, title, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+            
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type]}</span>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('hiding');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // ============ Variables ============
+        let selectedEmotion = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordingStartTime = null;
+        let timerInterval = null;
+        let wavesurfer = null;
+        let audioBlob = null;
+        let isRecording = false;
+
+        const recordBtn = document.getElementById('record-btn');
+        const timer = document.getElementById('timer');
+        const statusText = document.getElementById('status-text');
+        const recordHint = document.getElementById('record-hint');
+        const waveformContainer = document.getElementById('waveform-container');
+
+        // ============ Emotion Selection ============
+        function selectEmotion(emotion) {
+            // Clear previous selection
+            document.querySelectorAll('.emotion-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // Select new emotion
+            selectedEmotion = emotion;
+            document.querySelector(`[data-emotion="${emotion}"]`).classList.add('selected');
+            
+            // Enable record button
+            recordBtn.disabled = false;
+            recordHint.textContent = 'Click to start recording';
+            statusText.innerHTML = `<span class="text-accent">Ready to record:</span> ${getEmotionName(emotion)}`;
+        }
+
+        function getEmotionName(emotion) {
+            const names = {
+                mutlu: '😊 Mutlu',
+                uzgun: '😢 Üzgün',
+                kizgin: '😠 Kızgın',
+                notr: '😐 Nötr',
+                korku: '😨 Korku',
+                saskin: '😲 Şaşkın',
+                igrenme: '🤢 İğrenme'
+            };
+            return names[emotion] || emotion;
+        }
+
+        // ============ Recording Functions ============
+        recordBtn.addEventListener('click', async () => {
+            if (!selectedEmotion) {
+                showToast('warning', 'Select Emotion', 'Please select an emotion first');
+                return;
+            }
+            
+            if (isRecording) {
+                stopRecording();
+            } else {
+                await startRecording();
+            }
+        });
+
+        async function startRecording() {
+            try {
+                // Request microphone with high quality settings
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+                
+                // Reset state
+                audioChunks = [];
+                
+                // Use AudioContext to record as WAV
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: 16000
+                });
+                const source = audioContext.createMediaStreamSource(stream);
+                const processor = audioContext.createScriptProcessor(4096, 1, 1);
+                
+                // Store audio data
+                const recordedData = [];
+                
+                processor.onaudioprocess = (e) => {
+                    const inputData = e.inputBuffer.getChannelData(0);
+                    recordedData.push(new Float32Array(inputData));
+                };
+                
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+                
+                // Store references for stopping
+                window.audioRecordingContext = {
+                    audioContext,
+                    source,
+                    processor,
+                    stream,
+                    recordedData
+                };
+                
+                isRecording = true;
+                
+                // Update UI
+                recordBtn.classList.add('recording');
+                recordBtn.innerHTML = '<span class="record-icon">⏹️</span>';
+                timer.style.display = 'block';
+                statusText.innerHTML = '<span class="text-error pulse">🔴 Recording in progress...</span>';
+                recordHint.textContent = 'Click to stop recording';
+                waveformContainer.style.display = 'none';
+                
+                // Start timer
+                recordingStartTime = Date.now();
+                updateTimer();
+                timerInterval = setInterval(updateTimer, 100);
+                
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                showToast('error', 'Microphone Error', 'Could not access microphone. Please check permissions.');
+            }
+        }
+
+        function stopRecording() {
+            if (isRecording && window.audioRecordingContext) {
+                const ctx = window.audioRecordingContext;
+                
+                // Disconnect nodes
+                ctx.processor.disconnect();
+                ctx.source.disconnect();
+                ctx.stream.getTracks().forEach(track => track.stop());
+                
+                // Convert recorded data to WAV
+                const sampleRate = ctx.audioContext.sampleRate || 16000;
+                const recordedData = ctx.recordedData;
+                
+                // Merge all chunks
+                let totalLength = 0;
+                recordedData.forEach(chunk => totalLength += chunk.length);
+                const mergedData = new Float32Array(totalLength);
+                let offset = 0;
+                recordedData.forEach(chunk => {
+                    mergedData.set(chunk, offset);
+                    offset += chunk.length;
+                });
+                
+                // Create WAV blob
+                audioBlob = createWavBlob(mergedData, sampleRate);
+                
+                ctx.audioContext.close();
+                window.audioRecordingContext = null;
+                
+                isRecording = false;
+                
+                // Update UI
+                recordBtn.classList.remove('recording');
+                recordBtn.innerHTML = '<span class="record-icon">🎙️</span>';
+                clearInterval(timerInterval);
+                statusText.innerHTML = '<span class="text-success">✅ Recording completed!</span>';
+                recordHint.textContent = 'Preview your recording below';
+                
+                // Show preview
+                showPreview();
+            }
+        }
+        
+        // Create WAV file from audio data
+        function createWavBlob(samples, sampleRate) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+            
+            // WAV header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true); // chunk size
+            view.setUint16(20, 1, true); // PCM format
+            view.setUint16(22, 1, true); // mono
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true); // byte rate
+            view.setUint16(32, 2, true); // block align
+            view.setUint16(34, 16, true); // bits per sample
+            writeString(view, 36, 'data');
+            view.setUint32(40, samples.length * 2, true);
+            
+            // Convert float samples to 16-bit PCM
+            let offset = 44;
+            for (let i = 0; i < samples.length; i++) {
+                const s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                offset += 2;
+            }
+            
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+        
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        function updateTimer() {
+            const elapsed = Date.now() - recordingStartTime;
+            const seconds = Math.floor(elapsed / 1000);
+            const tenths = Math.floor((elapsed % 1000) / 100);
+            timer.textContent = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}.${tenths}`;
+        }
+
+        // ============ Preview Functions ============
+        function showPreview() {
+            waveformContainer.style.display = 'block';
+            
+            // Destroy previous wavesurfer instance
+            if (wavesurfer) {
+                wavesurfer.destroy();
+            }
+            
+            // Create new wavesurfer
+            wavesurfer = WaveSurfer.create({
+                container: '#waveform',
+                waveColor: '#00d4ff',
+                progressColor: '#7c3aed',
+                cursorColor: '#f472b6',
+                barWidth: 3,
+                barGap: 2,
+                barRadius: 3,
+                height: 80,
+                responsive: true,
+                backend: 'WebAudio'
+            });
+            
+            // Load audio blob
+            const audioUrl = URL.createObjectURL(audioBlob);
+            wavesurfer.load(audioUrl);
+            
+            // Update duration on ready
+            wavesurfer.on('ready', () => {
+                const duration = wavesurfer.getDuration();
+                document.getElementById('audio-duration').textContent = 
+                    `0:00 / ${formatTime(duration)}`;
+            });
+            
+            // Update time on audioprocess
+            wavesurfer.on('audioprocess', () => {
+                const current = wavesurfer.getCurrentTime();
+                const duration = wavesurfer.getDuration();
+                document.getElementById('audio-duration').textContent = 
+                    `${formatTime(current)} / ${formatTime(duration)}`;
+            });
+            
+            wavesurfer.on('finish', () => {
+                document.getElementById('play-icon').textContent = '▶️';
+            });
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function togglePlayback() {
+            if (wavesurfer) {
+                wavesurfer.playPause();
+                document.getElementById('play-icon').textContent = 
+                    wavesurfer.isPlaying() ? '⏸️' : '▶️';
+            }
+        }
+
+        // ============ Save/Discard Functions ============
+        async function saveRecording() {
+            if (!audioBlob || !selectedEmotion) {
+                showToast('error', 'Error', 'No recording to save');
+                return;
+            }
+            
+            const saveBtn = document.getElementById('save-btn');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '⏳ Saving...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('audio', audioBlob, `recording_${Date.now()}.wav`);
+                formData.append('emotion', selectedEmotion);
+                
+                const response = await fetch('/api/dataset/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('success', 'Saved!', `Recording saved to ${selectedEmotion} folder`);
+                    resetRecording();
+                } else {
+                    throw new Error(result.error || 'Upload failed');
+                }
+            } catch (error) {
+                console.error('Error saving recording:', error);
+                showToast('error', 'Save Failed', error.message);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '💾 Save to Dataset';
+            }
+        }
+
+        function discardRecording() {
+            resetRecording();
+            showToast('info', 'Discarded', 'Recording discarded');
+        }
+
+        function resetRecording() {
+            // Reset UI
+            timer.style.display = 'none';
+            timer.textContent = '00:00';
+            waveformContainer.style.display = 'none';
+            statusText.innerHTML = `<span class="text-accent">Ready to record:</span> ${getEmotionName(selectedEmotion)}`;
+            recordHint.textContent = 'Click to start recording';
+            
+            // Cleanup wavesurfer
+            if (wavesurfer) {
+                wavesurfer.destroy();
+                wavesurfer = null;
+            }
+            
+            audioBlob = null;
+            audioChunks = [];
+        }
+
+        // ============ Initialization ============
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check for microphone support
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showToast('error', 'Not Supported', 'Audio recording is not supported in this browser');
+                recordBtn.disabled = true;
+            }
+        });
+    </script>
+</body>
+</html>

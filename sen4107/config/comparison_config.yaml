@@ -1,0 +1,130 @@
+# Comparison Model (CNN-BiLSTM) Configuration
+# Turkish Speech Emotion Recognition
+# SEN4107 Course Project
+
+# Model Architecture
+model:
+  name: "cnn_bilstm"
+  type: "hybrid"
+  num_classes: 7
+  input_channels: 1
+  
+  # CNN Configuration
+  cnn:
+    channels: [32, 64]  # Output channels for each conv block
+    dropout_rate: 0.3
+  
+  # BiLSTM Configuration
+  lstm:
+    hidden_size: 128
+    num_layers: 2
+    bidirectional: true
+    dropout_rate: 0.3
+
+# Feature Extraction (same as baseline for fair comparison)
+features:
+  type: "mel"
+  sr: 16000
+  n_mels: 128
+  n_fft: 2048
+  hop_length: 512
+  target_length: 256
+  normalize: true
+
+# Dataset (same as baseline)
+data:
+  data_dir: "data/turkish_emotions"
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  random_seed: 42
+  stratify: false
+  
+  emotion_map:
+    mutlu: 0
+    uzgun: 1
+    kizgin: 2
+    notr: 3
+    korku: 4
+    saskin: 5
+    igrenme: 6
+
+# Training Hyperparameters
+# Note: Some hyperparameters may differ due to model complexity
+training:
+  batch_size: 32
+  num_epochs: 100
+  learning_rate: 0.0005  # Slightly lower LR for stability
+  weight_decay: 0.0001
+  
+  # Optimizer
+  optimizer:
+    type: "adam"
+    betas: [0.9, 0.999]
+    eps: 0.00000001
+  
+  # Learning Rate Scheduler
+  scheduler:
+    type: "reduce_on_plateau"
+    mode: "min"
+    factor: 0.5
+    patience: 10
+    min_lr: 0.000001
+  
+  # Loss Function
+  loss:
+    type: "cross_entropy"
+    label_smoothing: 0.1
+  
+  # Early Stopping
+  early_stopping:
+    enabled: true
+    patience: 20
+    min_delta: 0.001
+  
+  # Data Augmentation
+  augmentation:
+    enabled: true
+    noise_factor: 0.005
+
+# Validation & Evaluation
+validation:
+  eval_every: 1
+  save_best: true
+  metrics:
+    - accuracy
+    - macro_f1
+    - confusion_matrix
+
+# Checkpointing
+checkpoints:
+  save_dir: "checkpoints/cnn_bilstm"
+  save_every: 10
+  keep_last: 3
+
+# Logging
+logging:
+  log_dir: "logs/cnn_bilstm"
+  tensorboard: true
+  log_interval: 10
+  save_plots: true
+
+# Hardware
+hardware:
+  device: "cuda"
+  num_workers: 0  # No multiprocessing for Windows compatibility
+  pin_memory: true
+
+# Reproducibility
+seed: 42
+deterministic: true
+
+# Model Complexity Notes
+complexity:
+  note: |
+    CNN-BiLSTM is more complex than baseline CNN:
+    - More parameters due to LSTM layers
+    - Longer training time per epoch
+    - Higher memory usage
+    - Better temporal modeling capability
+    - Potentially higher accuracy on sequential data

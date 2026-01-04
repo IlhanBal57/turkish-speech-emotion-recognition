@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turkish SER - Training History</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <span class="logo-icon">🎤</span>
+                <span class="logo-text">Turkish SER</span>
+            </a>
+            <nav class="nav">
+                <a href="/" class="nav-link">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/record" class="nav-link">
+                    <span class="nav-icon">🎙️</span>
+                    <span>Record</span>
+                </a>
+                <a href="/train" class="nav-link">
+                    <span class="nav-icon">🚀</span>
+                    <span>Train</span>
+                </a>
+                <a href="/history" class="nav-link active">
+                    <span class="nav-icon">📈</span>
+                    <span>History</span>
+                </a>
+                <a href="/dataset" class="nav-link">
+                    <span class="nav-icon">📂</span>
+                    <span>Dataset</span>
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <!-- Page Header -->
+            <div class="page-header slide-up">
+                <h1 class="page-title">📈 Training History</h1>
+                <p class="page-subtitle">View and manage your training sessions</p>
+            </div>
+
+            <!-- Filters & Actions -->
+            <div class="card slide-up mb-4" style="animation-delay: 0.1s;">
+                <div class="flex-between flex-wrap gap-2">
+                    <div class="flex gap-2 flex-wrap">
+                        <select id="filter-model" class="form-select" style="width: auto;" onchange="applyFilters()">
+                            <option value="all">All Models</option>
+                            <option value="baseline">Baseline CNN</option>
+                            <option value="comparison">CNN-BiLSTM</option>
+                        </select>
+                        <select id="filter-status" class="form-select" style="width: auto;" onchange="applyFilters()">
+                            <option value="all">All Status</option>
+                            <option value="completed">✅ Completed</option>
+                            <option value="running">🔄 Running</option>
+                            <option value="failed">❌ Failed</option>
+                            <option value="stopped">⏸️ Stopped</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="btn btn-ghost btn-sm" onclick="loadTrainingHistory()">
+                            🔄 Refresh
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteAllTrainings()">
+                            🗑️ Clear All
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Training List -->
+            <div id="training-list" class="slide-up" style="animation-delay: 0.2s;">
+                <div class="card">
+                    <div class="empty-state">
+                        <div class="spinner" style="margin: 0 auto;"></div>
+                        <p class="text-secondary mt-2">Loading training history...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script>
+        let allTrainings = [];
+
+        // ============ Toast Notifications ============
+        function showToast(type, title, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type]}</span>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('hiding');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // ============ Load Training History ============
+        async function loadTrainingHistory() {
+            try {
+                const response = await fetch('/api/training/history?limit=50');
+                const result = await response.json();
+
+                if (result.success) {
+                    allTrainings = result.data;
+                    displayTrainings(allTrainings);
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                console.error('Error loading history:', error);
+                document.getElementById('training-list').innerHTML = `
+                    <div class="card">
+                        <div class="empty-state">
+                            <div class="empty-icon">❌</div>
+                            <div class="empty-title">Error Loading History</div>
+                            <p class="empty-description">${error.message}</p>
+                            <button onclick="loadTrainingHistory()" class="btn btn-primary">Try Again</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // ============ Display Trainings ============
+        function displayTrainings(trainings) {
+            const container = document.getElementById('training-list');
+
+            if (trainings.length === 0) {
+                container.innerHTML = `
+                    <div class="card">
+                        <div class="empty-state">
+                            <div class="empty-icon">📊</div>
+                            <div class="empty-title">No Training Sessions</div>
+                            <p class="empty-description">Start your first training to see results here!</p>
+                            <a href="/train" class="btn btn-primary">🚀 Start Training</a>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '<div style="display: flex; flex-direction: column; gap: 16px;">';
+
+            trainings.forEach((training, index) => {
+                const statusConfig = {
+                    completed: { badge: 'badge-success', icon: '✅', text: 'Completed' },
+                    running: { badge: 'badge-warning', icon: '🔄', text: 'Running' },
+                    failed: { badge: 'badge-error', icon: '❌', text: 'Failed' },
+                    stopped: { badge: 'badge-info', icon: '⏸️', text: 'Stopped' }
+                };
+                
+                const status = statusConfig[training.status] || statusConfig.completed;
+                const modelColor = training.model_type === 'baseline' ? 'var(--accent-primary)' : 'var(--accent-secondary)';
+                const modelName = training.model_type === 'baseline' ? 'Baseline CNN' : 'CNN-BiLSTM';
+                
+                const accuracy = training.best_val_acc 
+                    ? `${(training.best_val_acc * 100).toFixed(1)}%` 
+                    : '-';
+                
+                const f1Score = training.best_val_f1 
+                    ? `${(training.best_val_f1 * 100).toFixed(1)}%` 
+                    : '-';
+                
+                const date = new Date(training.created_at).toLocaleDateString('tr-TR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                const duration = training.training_time_minutes 
+                    ? `${training.training_time_minutes.toFixed(1)} min` 
+                    : '-';
+
+                html += `
+                    <div class="card slide-up" style="animation-delay: ${0.05 * index}s; border-left: 4px solid ${modelColor}; cursor: pointer;" 
+                         onclick="window.location.href='/history/${training.id}'">
+                        <div class="flex-between mb-3">
+                            <div>
+                                <div class="flex gap-2" style="align-items: center; margin-bottom: 8px;">
+                                    <h3 style="color: ${modelColor}; margin: 0;">Training #${training.id}</h3>
+                                    <span class="badge ${status.badge}">${status.icon} ${status.text}</span>
+                                </div>
+                                <p class="text-secondary" style="margin: 0;">
+                                    <strong>${modelName}</strong> • ${date}
+                                </p>
+                            </div>
+                            <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteTraining(${training.id})">
+                                🗑️
+                            </button>
+                        </div>
+
+                        <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));">
+                            <div class="stat-card" style="padding: 12px;">
+                                <div class="stat-label">Accuracy</div>
+                                <div class="stat-value" style="font-size: 24px;">${accuracy}</div>
+                            </div>
+                            <div class="stat-card" style="padding: 12px;">
+                                <div class="stat-label">F1 Score</div>
+                                <div class="stat-value" style="font-size: 24px; color: var(--accent-secondary);">${f1Score}</div>
+                            </div>
+                            <div class="stat-card" style="padding: 12px;">
+                                <div class="stat-label">Epochs</div>
+                                <div class="stat-value stat-value-secondary" style="font-size: 24px;">
+                                    ${training.final_epoch || '-'} / ${training.total_epochs || 100}
+                                </div>
+                            </div>
+                            <div class="stat-card" style="padding: 12px;">
+                                <div class="stat-label">Duration</div>
+                                <div class="stat-value stat-value-secondary" style="font-size: 20px;">${duration}</div>
+                            </div>
+                        </div>
+
+                        <div class="text-right mt-3">
+                            <span class="text-accent font-semibold">View Details →</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // ============ Filters ============
+        function applyFilters() {
+            const modelFilter = document.getElementById('filter-model').value;
+            const statusFilter = document.getElementById('filter-status').value;
+
+            let filtered = allTrainings;
+
+            if (modelFilter !== 'all') {
+                filtered = filtered.filter(t => t.model_type === modelFilter);
+            }
+
+            if (statusFilter !== 'all') {
+                filtered = filtered.filter(t => t.status === statusFilter);
+            }
+
+            displayTrainings(filtered);
+        }
+
+        // ============ Delete Training ============
+        async function deleteTraining(id) {
+            const confirmed = confirm(`Delete training #${id}?\n\nThis action cannot be undone.`);
+            if (!confirmed) return;
+
+            try {
+                const response = await fetch(`/api/training/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast('success', 'Deleted', `Training #${id} has been deleted`);
+                    loadTrainingHistory();
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                showToast('error', 'Error', error.message);
+            }
+        }
+
+        async function deleteAllTrainings() {
+            const confirmed = confirm('⚠️ Delete ALL training sessions?\n\nThis will permanently remove all training history. This action cannot be undone.');
+            if (!confirmed) return;
+
+            const doubleConfirm = confirm('Are you absolutely sure? Type "yes" mentally and click OK to proceed.');
+            if (!doubleConfirm) return;
+
+            try {
+                const response = await fetch('/api/training/all', {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast('success', 'Cleared', `Deleted ${result.deleted_count} training sessions`);
+                    loadTrainingHistory();
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                showToast('error', 'Error', error.message);
+            }
+        }
+
+        // ============ Initialize ============
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTrainingHistory();
+        });
+    </script>
+</body>
+</html>

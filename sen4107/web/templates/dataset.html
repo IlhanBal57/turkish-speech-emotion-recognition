@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dataset Browser - Turkish SER</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <span class="logo-icon">🎤</span>
+                <span class="logo-text">Turkish SER</span>
+            </a>
+            <nav class="nav">
+                <a href="/" class="nav-link">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/record" class="nav-link">
+                    <span class="nav-icon">🎙️</span>
+                    <span>Record</span>
+                </a>
+                <a href="/train" class="nav-link">
+                    <span class="nav-icon">🚀</span>
+                    <span>Train</span>
+                </a>
+                <a href="/history" class="nav-link">
+                    <span class="nav-icon">📈</span>
+                    <span>History</span>
+                </a>
+                <a href="/dataset" class="nav-link active">
+                    <span class="nav-icon">📂</span>
+                    <span>Dataset</span>
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <!-- Page Header -->
+            <div class="page-header slide-up">
+                <div class="flex-between">
+                    <div>
+                        <h1 class="page-title">📂 Dataset Browser</h1>
+                        <p class="page-subtitle">Browse and manage your audio recordings</p>
+                    </div>
+                    <button id="refresh-btn" class="btn btn-ghost" onclick="loadDataset()">
+                        🔄 Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Audio Player Modal -->
+            <div id="player-modal" class="card slide-up mb-4" style="display: none; animation-delay: 0.15s;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span id="player-emotion-icon">🎵</span>
+                        <span id="player-filename">Now Playing</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="closePlayer()">✕ Close</button>
+                </div>
+                <div id="waveform" style="height: 80px; background: var(--bg-tertiary); border-radius: var(--radius-md); margin-bottom: 16px;"></div>
+                <div class="flex-center gap-3">
+                    <button id="play-btn" class="btn btn-primary" onclick="togglePlayback()">
+                        <span id="play-icon">▶️</span> Play
+                    </button>
+                    <span id="audio-time" class="text-muted font-mono">0:00 / 0:00</span>
+                </div>
+            </div>
+
+            <!-- Dataset Grid -->
+            <div id="dataset-container" class="slide-up" style="animation-delay: 0.2s;">
+                <div class="card text-center">
+                    <div class="spinner" style="width: 48px; height: 48px;"></div>
+                    <p class="text-muted mt-3">Loading dataset...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script>
+        // ============ Configuration ============
+        const emotions = {
+            mutlu: { icon: '😊', name: 'Mutlu', color: '#10b981', gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' },
+            uzgun: { icon: '😢', name: 'Üzgün', color: '#3b82f6', gradient: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' },
+            kizgin: { icon: '😠', name: 'Kızgın', color: '#ef4444', gradient: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' },
+            notr: { icon: '😐', name: 'Nötr', color: '#6b7280', gradient: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)' },
+            korku: { icon: '😨', name: 'Korku', color: '#8b5cf6', gradient: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' },
+            saskin: { icon: '😲', name: 'Şaşkın', color: '#f59e0b', gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' },
+            igrenme: { icon: '🤢', name: 'İğrenme', color: '#14b8a6', gradient: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)' }
+        };
+
+        let wavesurfer = null;
+        let currentAudio = null;
+
+        // ============ Load Dataset ============
+        async function loadDataset() {
+            try {
+                const response = await fetch('/api/dataset/files');
+                const result = await response.json();
+
+                if (result.success) {
+                    displayStats(result.data);
+                    displayDataset(result.data);
+                }
+            } catch (error) {
+                console.error('Error loading dataset:', error);
+                document.getElementById('dataset-container').innerHTML = `
+                    <div class="card text-center">
+                        <div style="font-size: 48px;">❌</div>
+                        <div class="text-error mt-2">Failed to load dataset</div>
+                    </div>
+                `;
+            }
+        }
+
+        // ============ Display Statistics ============
+        function displayStats(data) {
+            // Statistics removed - keeping function for compatibility
+        }
+
+        // ============ Display Dataset ============
+        function displayDataset(data) {
+            const container = document.getElementById('dataset-container');
+            let html = '<div class="grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px;">';
+
+            for (const [emotion, files] of Object.entries(data)) {
+                const info = emotions[emotion];
+                if (!info) continue;
+
+                html += `
+                    <div class="emotion-card" style="
+                        background: var(--bg-card);
+                        border-radius: 16px;
+                        border: 1px solid var(--border-subtle);
+                        overflow: hidden;
+                        transition: all 0.3s ease;
+                    ">
+                        <!-- Card Header -->
+                        <div style="
+                            background: ${info.gradient};
+                            padding: 16px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                        ">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 28px;">${info.icon}</span>
+                                <span style="font-size: 16px; font-weight: 600; color: white;">${info.name}</span>
+                            </div>
+                            <span style="
+                                background: rgba(255,255,255,0.25);
+                                padding: 4px 10px;
+                                border-radius: 20px;
+                                font-size: 12px;
+                                font-weight: 600;
+                                color: white;
+                            ">${files.length} ses</span>
+                        </div>
+                        
+                        <!-- Card Body with Scroll -->
+                        <div class="audio-list" style="
+                            height: 200px;
+                            overflow-y: auto;
+                            padding: 8px;
+                        ">
+                `;
+
+                if (files.length === 0) {
+                    html += `
+                        <div style="
+                            height: 100%;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            color: var(--text-tertiary);
+                        ">
+                            <div style="font-size: 32px; margin-bottom: 8px;">📭</div>
+                            <div style="font-size: 13px;">Henüz kayıt yok</div>
+                        </div>
+                    `;
+                } else {
+                    files.forEach((file, index) => {
+                        html += `
+                            <div class="audio-item" style="
+                                padding: 8px 10px;
+                                margin-bottom: 4px;
+                                background: var(--bg-tertiary);
+                                border-radius: 10px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                                transition: all 0.15s ease;
+                                cursor: pointer;
+                            " onmouseover="this.style.background='var(--bg-glass-hover)'; this.style.transform='translateX(4px)'" 
+                               onmouseout="this.style.background='var(--bg-tertiary)'; this.style.transform='translateX(0)'">
+                                <button onclick="playAudio('${emotion}', '${file}')" 
+                                        class="play-btn" 
+                                        style="
+                                            width: 28px;
+                                            height: 28px;
+                                            border-radius: 50%;
+                                            border: none;
+                                            background: ${info.gradient};
+                                            color: white;
+                                            font-size: 12px;
+                                            cursor: pointer;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            transition: transform 0.15s ease;
+                                        " onmouseover="this.style.transform='scale(1.1)'" 
+                                           onmouseout="this.style.transform='scale(1)'">
+                                    ▶
+                                </button>
+                                <span style="
+                                    flex: 1;
+                                    font-size: 11px;
+                                    color: var(--text-secondary);
+                                    font-family: var(--font-mono);
+                                    overflow: hidden;
+                                    text-overflow: ellipsis;
+                                    white-space: nowrap;
+                                ">${file}</span>
+                                <button onclick="event.stopPropagation(); deleteAudio('${emotion}', '${file}')" 
+                                        style="
+                                            width: 24px;
+                                            height: 24px;
+                                            border-radius: 6px;
+                                            border: none;
+                                            background: transparent;
+                                            color: var(--text-tertiary);
+                                            font-size: 12px;
+                                            cursor: pointer;
+                                            transition: all 0.15s ease;
+                                        " onmouseover="this.style.color='var(--accent-error)'; this.style.background='rgba(239,68,68,0.1)'" 
+                                           onmouseout="this.style.color='var(--text-tertiary)'; this.style.background='transparent'"
+                                        title="Sil">
+                                    🗑️
+                                </button>
+                            </div>
+                        `;
+                    });
+                }
+
+                html += '</div></div>';
+            }
+
+            html += '</div>';
+            
+            // Add custom scrollbar styles
+            html += `
+                <style>
+                    .audio-list::-webkit-scrollbar {
+                        width: 6px;
+                    }
+                    .audio-list::-webkit-scrollbar-track {
+                        background: var(--bg-tertiary);
+                        border-radius: 3px;
+                    }
+                    .audio-list::-webkit-scrollbar-thumb {
+                        background: var(--border-default);
+                        border-radius: 3px;
+                    }
+                    .audio-list::-webkit-scrollbar-thumb:hover {
+                        background: var(--text-tertiary);
+                    }
+                    .emotion-card:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+                    }
+                </style>
+            `;
+            
+            container.innerHTML = html;
+        }
+
+        // ============ Audio Player ============
+        async function playAudio(emotion, filename) {
+            const modal = document.getElementById('player-modal');
+            const emotionInfo = emotions[emotion];
+            
+            document.getElementById('player-emotion-icon').textContent = emotionInfo.icon;
+            document.getElementById('player-filename').textContent = filename;
+            
+            modal.style.display = 'block';
+            
+            // Destroy previous wavesurfer instance
+            if (wavesurfer) {
+                wavesurfer.destroy();
+            }
+            
+            // Create new wavesurfer instance
+            wavesurfer = WaveSurfer.create({
+                container: '#waveform',
+                waveColor: emotionInfo.color,
+                progressColor: '#7c3aed',
+                cursorColor: '#fff',
+                barWidth: 3,
+                barRadius: 3,
+                barGap: 2,
+                responsive: true,
+                height: 80,
+                normalize: true
+            });
+            
+            // Load audio
+            const audioUrl = `/api/dataset/audio/${emotion}/${filename}`;
+            wavesurfer.load(audioUrl);
+            
+            // Events
+            wavesurfer.on('ready', () => {
+                updateTimeDisplay();
+                wavesurfer.play();
+                updatePlayButton(true);
+            });
+            
+            wavesurfer.on('audioprocess', updateTimeDisplay);
+            wavesurfer.on('seek', updateTimeDisplay);
+            
+            wavesurfer.on('finish', () => {
+                updatePlayButton(false);
+            });
+            
+            wavesurfer.on('play', () => updatePlayButton(true));
+            wavesurfer.on('pause', () => updatePlayButton(false));
+        }
+        
+        function updateTimeDisplay() {
+            if (!wavesurfer) return;
+            const current = formatTime(wavesurfer.getCurrentTime());
+            const duration = formatTime(wavesurfer.getDuration());
+            document.getElementById('audio-time').textContent = `${current} / ${duration}`;
+        }
+        
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '0:00';
+            const min = Math.floor(seconds / 60);
+            const sec = Math.floor(seconds % 60);
+            return `${min}:${sec.toString().padStart(2, '0')}`;
+        }
+        
+        function togglePlayback() {
+            if (wavesurfer) {
+                wavesurfer.playPause();
+            }
+        }
+        
+        function updatePlayButton(isPlaying) {
+            const btn = document.getElementById('play-btn');
+            const icon = document.getElementById('play-icon');
+            if (isPlaying) {
+                icon.textContent = '⏸️';
+                btn.innerHTML = '<span id="play-icon">⏸️</span> Pause';
+            } else {
+                icon.textContent = '▶️';
+                btn.innerHTML = '<span id="play-icon">▶️</span> Play';
+            }
+        }
+        
+        function closePlayer() {
+            const modal = document.getElementById('player-modal');
+            modal.style.display = 'none';
+            if (wavesurfer) {
+                wavesurfer.stop();
+            }
+        }
+
+        // ============ Delete Audio ============
+        async function deleteAudio(emotion, filename) {
+            const confirmed = confirm(`Are you sure you want to delete "${filename}"?\n\nThis action cannot be undone.`);
+            if (!confirmed) return;
+
+            try {
+                const response = await fetch(`/api/dataset/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emotion, filename })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    loadDataset();
+                    
+                    // Close player if the deleted file was playing
+                    if (wavesurfer && document.getElementById('player-filename').textContent === filename) {
+                        closePlayer();
+                    }
+                } else {
+                    alert('Error deleting file: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error deleting file');
+                console.error(error);
+            }
+        }
+
+        // ============ Initialize ============
+        document.addEventListener('DOMContentLoaded', loadDataset);
+    </script>
+</body>
+</html>
